@@ -27,13 +27,13 @@ int main()
         // store them in these variables
         fin.close();                   // Close the file
     }
-    cout<<"Nt: "<<Nt<<endl;
-    cout<<"Nx: "<<Nx<<endl;
-    cout<<"dt: "<<dt<<endl;
-    cout<<"dx: "<<dx<<endl;
-    cout<<"T_izq: "<<T_izq<<endl;
-    cout<<"T_der: "<<T_der<<endl;
-    cout<<"k: "<<k<<endl;
+    // cout<<"Nt: "<<Nt<<endl;
+    // cout<<"Nx: "<<Nx<<endl;
+    // cout<<"dt: "<<dt<<endl;
+    // cout<<"dx: "<<dx<<endl;
+    // cout<<"T_izq: "<<T_izq<<endl;
+    // cout<<"T_der: "<<T_der<<endl;
+    // cout<<"k: "<<k<<endl;
     while(1) //Use a while loop, "i" isn't doing anything for you
     {
         //if comman not found find return string::npos
