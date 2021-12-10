@@ -1,1 +1,1 @@
-# CALOR1D-PParalela
+# Programacion Paralela

@@ -19,75 +19,47 @@ int main(int argc, char **argv)
 
     string path = (string)argv[1]; // Storing your filename in a string
     ifstream fin;                 // Declaring an input stream object
-
     fin.open(path);    // Open the file
     if (fin.is_open()) // If it opened successfully
     {
-        fin >> Nt >> Nx >> dt >> dx >> strT_0 >> T_izq >> T_der >> k; // Read the values and
-        // store them in these variables
+        fin >> Nt >> Nx >> dt >> dx >> strT_0 >> T_izq >> T_der >> k; // Read the values and store them in these variables
         fin.close(); // Close the file
     }
-    // cout<<"Nt: "<<Nt<<endl;
-    // cout<<"Nx: "<<Nx<<endl;
-    // cout<<"dt: "<<dt<<endl;
-    // cout<<"dx: "<<dx<<endl;
-    // cout<<"T_izq: "<<T_izq<<endl;
-    // cout<<"T_der: "<<T_der<<endl;
-    // cout<<"k: "<<k<<endl;
+    
     while (1) //Use a while loop, "i" isn't doing anything for you
     {
-        //if comman not found find return string::npos
-
-        if (strT_0.find(',') != std::string::npos)
+        if (strT_0.find(',') != std::string::npos) //if comman not found find return string::npos
         {
             double value;
             istringstream(strT_0) >> value;
-
             T_0.push_back(value);
-
-            //Erase all element including comma
-            strT_0.erase(0, strT_0.find(',') + 1);
+            strT_0.erase(0, strT_0.find(',') + 1); //Erase all element including comma
         }
         else
             break; //Come out of loop
     }
-    //cout << "str: " << strT_0 << endl;
-    //cout << "T_0" << endl;
-    for (double i : T_0)
-    {
-        cout << i << " ";
-    }
 
     L = Nx * dx;
+    Nx=Nx+1;
     tmax = Nt * dt;
-
-    Nx = (L / dx) + 1;
-
     vector<double> X;
-    for (int i = 0; i < Nx; i++) //creacion del vector de longitudes espaciado
-    {
-        X.push_back(i * dx);
-    }
-
-    //    const int Nt = ceil(tmax / dt) + 1; //cantidad de tiempos
-    vector<double> T; //matriz de tiempos (v) y posiciones (>)
+    vector<double> T; //"matriz" de tiempos (v) y posiciones (>)
     for (int z = 0; z < Nt * Nx; z++)
     {
         T.push_back(0);
     }
-    for (int x = 1; x < Nx - 1; x++) //seteo de la primera fila con temperatura ambiente de la barra
+    for (int i = 0; i < Nx; i++) 
     {
-        T[x] = T_0[x - 1];
+        X.push_back(i * dx);	//creacion del vector de longitudes espaciado
+        T[i] = T_0[i];		//seteo de la primera fila con temperatura ambiente de la barra
     }
     for (int t = 1; t < Nt; t++)
     {
         T[(t)*Nx] = T_izq;           //Seteo de la primera columna con el valor del calor
         T[(t + 1) * Nx - 1] = T_der; //seteo de la ultima columna con el valor del calor
     }
-    T[0] = (T[1] + T[Nx]) / 2; //seteo del primer elemento
-    //cout<<endl<<T[1]<<" "<<T[Nx]<<": "<<T[0]<<endl;
-    T[Nx - 1] = (T[Nx - 2] + T[2 * Nx - 1]) / 2; //seteo del ultimo elemento primera fila
-    //cout<<T[Nx - 2]<<" "<<T[2 * Nx - 1]<<": "<<T[Nx - 1]<<endl;
+    //T[0] = (T[1] + T[Nx]) / 2; //seteo del primer elemento
+    //T[Nx - 1] = (T[Nx - 2] + T[2 * Nx - 1]) / 2; //seteo del ultimo elemento primera fila
     for (int f = 1; f < Nt; f++) //f -> tiempo t
     {
         for (int c = 1; c < Nx - 1; c++) //c -> posicion x
@@ -112,7 +84,6 @@ int main(int argc, char **argv)
     cout << "------------------------------------------------------------------" << endl;
 
     vector<float> tiempo;
-
     for (int i = 0; i < Nx * Nt; i++)
     {
         if (i == 0)
@@ -143,7 +114,6 @@ int main(int argc, char **argv)
             tiempo.push_back(((i + 1) * dt) / Nx);
         }
     }
-
     cout << endl;
 
     for (int i = 0; i < (Nt)-1; i++)
@@ -153,7 +123,6 @@ int main(int argc, char **argv)
             X.push_back(j * dx);
         }
     }
-
     vector<float> t;
     for (int j = 0; j < Nt; j++)
     {
@@ -162,7 +131,6 @@ int main(int argc, char **argv)
             t.push_back(tiempo[j]);
         }
     }
-
     archivo.open(nombreArchivo.c_str(), fstream::out);
     for (int i = 0; i < X.size(); i++)
     {
