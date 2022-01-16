@@ -15,7 +15,7 @@ int main()
     
     auto start = high_resolution_clock::now();
     double start2 = omp_get_wtime();
-    #pragma omp parallel for reduction(+:pi)
+#pragma omp parallel for reduction(+:pi)
     for (int n=0; n<max; n++)
     {
     	pi += pow(-1,n)/(2*n+1);
