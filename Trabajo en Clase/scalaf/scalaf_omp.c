@@ -1,6 +1,17 @@
 /*
 Código secuencial para la simulación de flujos de lava volcánica
                         -Sergio Augusto Gélvez Cortés
+
+Compilacion
+gcc -o scalaf -fopenmp scalaf_omp.c -lm
+g++ -o scalaf -fopenmp scalaf_omp.c -lm
+
+Parametros
+./$ARCH_EXEC -t $eruption_temperature -v $eruption_rate -w $cell_width -s $ARCH_CRATER -a $ARCH_ALTITUD -r $map_rows -c $map_columns -p $number_of_craters -e $ITERATION_NAME -n $time_steps > $ARCH_SALIDA
+
+Ejecucion 
+./scalaf -t 1500 -v 100 -w 1 -s crater_location -a altitudesMil.csv -r 1024 -c 1024 -p 1 -e "1024x1024" -n 10                       
+
 */
 
 #include "scalaf.h"
