@@ -1,27 +1,15 @@
 /*
 Código secuencial para la simulación de flujos de lava volcánica
                         -Sergio Augusto Gélvez Cortés
-
-Compilacion
-gcc -o scalaf -fopenmp scalaf_omp.c -lm
-g++ -o scalaf -fopenmp scalaf_omp.c -lm
-
-Parametros
-./$ARCH_EXEC -t $eruption_temperature -v $eruption_rate -w $cell_width -s $ARCH_CRATER -a $ARCH_ALTITUD -r $map_rows -c $map_columns -p $number_of_craters -e $ITERATION_NAME -n $time_steps > $ARCH_SALIDA
-
-Ejecucion 
-./scalaf -t 1500 -v 100 -w 1 -s crater_location -a altitudesMil.csv -r 1024 -c 1024 -p 1 -e "1024x1024" -n 10                       
-
 */
 
 #include "scalaf.h"
-#include <math.h>
+#include "math.h"
 #include "string.h"
 #include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <omp.h>
 
 // Función que calcula la viscosidad a partir de la temperatura,
 // tomada del artículo de Miyamoto y Sasaki
@@ -41,7 +29,6 @@ int placeCraters(mapCell *A, const point2D *P, int totalRows, int totalColumns,
                  int totalCraters) {
 
   int craterColumn, craterRow;
-  #pragma omp parallel for
   for (int i = 0; i < totalCraters; ++i) {
     craterRow = P[i].x;
     craterColumn = P[i].y;
@@ -124,7 +111,7 @@ int readTerrainFile(char *path, int maxRows, int maxColumns, mapCell *map) {
     fclose(mapAltitudesFile);
     return 1;
   } else {
-//    printf("ERROR: Mapa de alturas no encontrado!\n");
+//    printf("\nERROR: Mapa de alturas no encontrado!");
     return 0;
   }
 }
@@ -144,11 +131,9 @@ void preFuncion(int filas, int columnas, const mapCell *A, mapCell *C) {
   B = (mapCell *)malloc((filas + 2) * (columnas + 2) * sizeof(mapCell));
   // crear elementos para la matriz agrandada. B[filas+2][columnas+2];
   f = 0;
-//  #pragma omp parallel for reduction(+:f) // 178 / GRAFICA -> RED(vacio), SOLO(vacio)
   for (i = 0; i < filas + 2; ++i) {
     if (!(i == 0 || i == (filas + 1))) {
       c = 0;
-//      #pragma omp parallel for reduction(+:c) // 155 / GRAFICA -> RED(vacio), SOLO(varias)
       for (j = 0; j < columnas + 2; ++j) {
         if (!(j == 0 || j == (columnas + 1))) {
           // acá van los valores no en los bordes
@@ -233,11 +218,9 @@ void postFuncion(int filas, int columnas, const mapCell *A, mapCell *C) {
   c = 0;
   f = 0;
   // reducir la matriz
-  #pragma omp parallel for reduction(+:f)
   for (i = 0; i < filas; i++) {
     if (!(i == 0 || i >= (filas - 1))) {
       c = 0;
-      #pragma omp parallel for reduction(+:c)
       for (j = 0; j < columnas; j++) {
         if (!(j == 0 || j >= (columnas - 1))) {
           B[f * n_columnas + c].altitude = A[i * columnas + j].altitude;
@@ -278,7 +261,6 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C) {
   double cArea = c0.cellWidth * c0.cellWidth;
   double alfa = 0.0;
   // primer ciclo que es solo para inicializar
-  #pragma omp parallel for collapse(2)
   for (i = 1; i < filas - 1; i++) {
     for (j = 1; j < columnas - 1; j++) {
       // primero calcular la viscosidad y el yield, e inicializar los flujos
@@ -291,13 +273,11 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C) {
     }
   }
   // ciclo para evaluar la cantidad de salidas que tiene cada celda
-//  #pragma omp parallel for collapse(2) // TIEMPO
   for (i = 1; i < filas - 1; i++) {
     for (j = 1; j < columnas - 1; j++) {
       Href = A[i * (columnas) + j].thickness;
       Aref = A[i * (columnas) + j].altitude;
       flujos = 0;
-//      #pragma omp parallel for collapse(2) // 309 / TIEMPO Y GRAFICA
       for (l = -1; l < 2; l++) {
         for (m = -1; m < 2; m++) {
           if (!(m == 0 && l == 0)) {
@@ -330,7 +310,6 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C) {
   // los supuestos de los autómatas celulares es que los estados solo se
   // actualizan al final, se necesita un segundo ciclo.  Esto es crucial para el
   // mapeo.
-//  #pragma omp parallel for collapse(2) //332 y 335 / GRAFICA
   for (i = 1; i < filas - 1; i++) {
     for (j = 1; j < columnas - 1; j++) {
       double deltaQ_flu_vent = 0.0;
@@ -369,7 +348,6 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C) {
       // calculo los flujos como tal, vamos a calcular directamente, sin
       // provisión de orden en los flujos, agregar el deltaV correcto. y el
       // correspondiente deltaQ
-//      #pragma omp parallel for collapse(2) //425-427 / TIEMPO Y GRAFICA
       for (l = -1; l < 2; l++) {
         for (m = -1; m < 2; m++) {
           if (!(m == 0 && l == 0)) {
@@ -458,7 +436,7 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C) {
   // segundo ciclo, consolidamos los flujos, calculamos nuevos grosores
   // y temperaturas.
   // luego agregamos crateres y calculamos la temperatura perdida por radiacion
-//  #pragma omp parallel for collapse(2)
+
   for (i = 1; i < filas - 1; i++) {
     for (j = 1; j < columnas - 1; j++) {
       deltaT = 0.0;
@@ -536,109 +514,109 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C) {
 }
 
 // nota, falta implementar las cifras significativas
-//int prepararVisualizacionGNUPlot(int secuencia, char *path, int filas,
-//                                 int columnas, mapCell *matriz,
-//                                 int cifrasSignif, double w, double x0,
-//                                 double y0) {
-//  // Esta función genera los dos archivos necesarios para producir una imagen
-//  // en GNU plot.  Los archivos son:
-//  // 1. datafile.dat (o variantes) que contiene los datos de altitud,
-//  // temperatura y grosor de la capa, teniendo en cuenta que altitud ya tiene en
-//  // cuenta el de la capa, pero este se incluye para dar mas opciones
-//  // 2. archivo de comandos, que incluye lo necesario para poder configurar
-//  // el área de dibujo, las escalas, las leyendas, etc.
-//  // Los parámetros son matriz, que es la matriz completa con los resultados
-//  // nombreArchivo, que es el nombre base de los archivos de datos a producir
-//  // y secuencia, en el caso en el que se produzcan varios archivos para
-//  // generar una animación, nos dará el orden.  El resultado es un plot de gnu
-//  // plot mas una imagen png exportada a partir de eso, que llevará como nombre
-//  // nombreArchivo + secuencia.png
-//  FILE *datosAltitud;
-//  FILE *encabezado;
-//  size_t sizep;
-//  int i, j, flag;
-//  double xcoord, ycoord, zcoord, temp;
-//  sizep = strlen(path);
-//  long int cont;
-//  char newpath[500], tsec[20], pathenca[550], command[700], f_path[1024];
-////  // printf("\nNumero de caracteres de la ruta del archivo %d\n",(int)sizep);
-//  if (sizep != 0) {
-//    strcpy(newpath, path);
-//    sprintf(tsec, "%d", secuencia);
-//    strcat(newpath, tsec);
-////    printf("Escribiendo archivo: %s\n", newpath);
-//    datosAltitud = fopen(newpath, "w");
-//    if (datosAltitud != NULL) {
-////      printf("Guardando en archivo 0...\n");
-//      // Escribiendo los datos
-//      cont = 0;
-////      #pragma omp parallel for
-//      for (j = 0; j < columnas; ++j) { // aca debo cambiar esto, altitude +
-//                                       // thickness da la altura, osea la z
-////        #pragma omp parallel for reduction(+:cont)
-//        for (i = 0; i < filas; ++i) {
-//          xcoord = x0 + i * w;
-//          ycoord = y0 + j * w;
-//          zcoord = matriz[columnas * i + j].thickness +
-//                   matriz[columnas * i + j].altitude;
-//          temp = matriz[columnas * i + j].temperature;
-//          fprintf(datosAltitud, "%6.3lf %6.3lf %6.3lf %6.3lf\n", xcoord, ycoord, zcoord, temp);
-//          cont += 1;
-//        }
-//        // para las isolineas
-//        fprintf(datosAltitud, "\n");
-//      }
-////      printf("Se escribieron %ld elementos.\n\n", cont);
-//      fclose(datosAltitud);
-//    } else {
-////      printf("***\nError al intentar escribir el archivo de datos.\n***\n\n");
-//    }
-//    strcpy(pathenca, newpath);
-//    strcat(pathenca, "_enca");
-////    printf("Guardando archivo de encabezado %s \n", pathenca);
-//    encabezado = fopen(pathenca, "w");
-//    if (encabezado != NULL) {
-//      // escribiendo el encabezado, pero en GNUPLOT es diferente
-//      // se muestran opciones para png y eps
-//      // fprintf(encabezado,"set terminal png size 400,300 enhanced font
-//      // \"Helvetica,20\"\n\n",newpath);
-//      fprintf(encabezado, "set terminal png size 1366,720 enhanced\n\n", newpath);
-//      fprintf(encabezado, "set output '%s.png'\n", newpath);
-//      // dejo estas líneas comentadas por si necesito configurar mejor
-//      // la visualización.
-//      // fprintf(encabezado,"set term postscript eps enhanced color\n");
-//      // fprintf(encabezado,"set output '%s.eps'\n",newpath);
-//      // fprintf(encabezado,"set autoscale y #set	autoscale	# scale
-//      // axes automatically\n"); fprintf(encabezado,"unset label	# remove
-//      // any previous labels\n"); fprintf(encabezado,"set encoding utf8\n\n");
-//      // fprintf(encabezado,"set isosamples 100\n");
-//      // fprintf(encabezado,"set samples 100\n\n");
-//      // fprintf(encabezado,"unset key\n");
-//      // fprintf(encabezado,"unset grid\n");
-//      // fprintf(encabezado,"unset border\n");
-//      // fprintf(encabezado,"unset tics\n");
-//      fprintf(encabezado, "set xrange [0:20]\n");
-//      fprintf(encabezado, "set yrange [0:20]\n");
-//      fprintf(encabezado, "set zrange [0:20]\n\n");
-//      fprintf(encabezado, "set colorbox\n");
-//      // fprintf(encabezado,"unset surface\n");
-//      fprintf(encabezado, "set pm3d\n");
-//      fprintf(encabezado, "set title \"%d\"\n\n", secuencia);
-//      fprintf(encabezado, "splot \"%s\" using 1:2:3:4 with pm3d\n", newpath);
-//      fprintf(encabezado, "reset\n");
-//      fclose(encabezado);
-//    } else {
-////      printf("\n***\nError al intentar escribir el archivo de ecabezado.\n***\n");
-//    }
-//    // se ejecuta el gnu plot para generar el archivo de imagen
-//    limpiarPath(pathenca, f_path);
-//    strcpy(command, "gnuplot ");
-//    strcat(command, f_path);
-////    printf("Ejecutando comando: %s\n", command);
-//    flag = system(command);
-////    printf("Mensaje del comando %d\n", flag);
-//  }
-//}
+int prepararVisualizacionGNUPlot(int secuencia, char *path, int filas,
+                                 int columnas, mapCell *matriz,
+                                 int cifrasSignif, double w, double x0,
+                                 double y0) {
+  // Esta función genera los dos archivos necesarios para producir una imagen
+  // en GNU plot.  Los archivos son:
+  // 1. datafile.dat (o variantes) que contiene los datos de altitud,
+  // temperatura y grosor de la capa, teniendo en cuenta que altitud ya tiene en
+  // cuenta el de la capa, pero este se incluye para dar mas opciones
+  // 2. archivo de comandos, que incluye lo necesario para poder configurar
+  // el área de dibujo, las escalas, las leyendas, etc.
+  // Los parámetros son matriz, que es la matriz completa con los resultados
+  // nombreArchivo, que es el nombre base de los archivos de datos a producir
+  // y secuencia, en el caso en el que se produzcan varios archivos para
+  // generar una animación, nos dará el orden.  El resultado es un plot de gnu
+  // plot mas una imagen png exportada a partir de eso, que llevará como nombre
+  // nombreArchivo + secuencia.png
+  FILE *datosAltitud;
+  FILE *encabezado;
+  size_t sizep;
+  int i, j, flag;
+  double xcoord, ycoord, zcoord, temp;
+  sizep = strlen(path);
+  long int cont;
+  char newpath[500], tsec[20], pathenca[550], command[700], f_path[1024];
+//  // printf("\nNumero de caracteres de la ruta del archivo %d\n",(int)sizep);
+  if (sizep != 0) {
+    strcpy(newpath, path);
+    sprintf(tsec, "%d", secuencia);
+    strcat(newpath, tsec);
+//    printf("Escribiendo archivo: %s\n", newpath);
+    datosAltitud = fopen(newpath, "w");
+    if (datosAltitud != NULL) {
+//      printf("Guardando en archivo...\n");
+      // Escribiendo los datos
+      cont = 0;
+      for (j = 0; j < columnas; ++j) { // aca debo cambiar esto, altitude +
+                                       // thickness da la altura, osea la z
+        for (i = 0; i < filas; ++i) {
+          xcoord = x0 + i * w;
+          ycoord = y0 + j * w;
+          zcoord = matriz[columnas * i + j].thickness +
+                   matriz[columnas * i + j].altitude;
+          temp = matriz[columnas * i + j].temperature;
+          fprintf(datosAltitud, "%6.3lf %6.3lf %6.3lf %6.3lf\n", xcoord, ycoord,
+                  zcoord, temp);
+          cont += 1;
+        }
+        // para las isolineas
+        fprintf(datosAltitud, "\n");
+      }
+//      printf("Se escribieron %ld elementos.\n\n", cont);
+      fclose(datosAltitud);
+    } else {
+//      printf("***\nError al intentar escribir el archivo de datos.\n***\n\n");
+    }
+    strcpy(pathenca, newpath);
+    strcat(pathenca, "_enca");
+//    printf("Guardando archivo de encabezado %s \n", pathenca);
+    encabezado = fopen(pathenca, "w");
+    if (encabezado != NULL) {
+      // escribiendo el encabezado, pero en GNUPLOT es diferente
+      // se muestran opciones para png y eps
+      // fprintf(encabezado,"set terminal png size 400,300 enhanced font
+      // \"Helvetica,20\"\n\n",newpath);
+      fprintf(encabezado, "set terminal png size 1366,720 enhanced\n\n",
+              newpath);
+      fprintf(encabezado, "set output '%s.png'\n", newpath);
+      // dejo estas líneas comentadas por si necesito configurar mejor
+      // la visualización.
+      // fprintf(encabezado,"set term postscript eps enhanced color\n");
+      // fprintf(encabezado,"set output '%s.eps'\n",newpath);
+      // fprintf(encabezado,"set autoscale y #set	autoscale	# scale
+      // axes automatically\n"); fprintf(encabezado,"unset label	# remove
+      // any previous labels\n"); fprintf(encabezado,"set encoding utf8\n\n");
+      // fprintf(encabezado,"set isosamples 100\n");
+      // fprintf(encabezado,"set samples 100\n\n");
+      // fprintf(encabezado,"unset key\n");
+      // fprintf(encabezado,"unset grid\n");
+      // fprintf(encabezado,"unset border\n");
+      // fprintf(encabezado,"unset tics\n");
+      fprintf(encabezado, "set xrange [0:20]\n");
+      fprintf(encabezado, "set yrange [0:20]\n");
+      fprintf(encabezado, "set zrange [0:20]\n\n");
+      fprintf(encabezado, "set colorbox\n");
+      // fprintf(encabezado,"unset surface\n");
+      fprintf(encabezado, "set pm3d\n");
+      fprintf(encabezado, "set title \"%d\"\n\n", secuencia);
+      fprintf(encabezado, "splot \"%s\" using 1:2:3:4 with pm3d\n", newpath);
+      fprintf(encabezado, "reset\n");
+      fclose(encabezado);
+    } else {
+//      printf("\n***\nError al intentar escribir el archivo de ecabezado.\n***\n");
+    }
+    // se ejecuta el gnu plot para generar el archivo de imagen
+    limpiarPath(pathenca, f_path);
+    strcpy(command, "gnuplot ");
+    strcat(command, f_path);
+//    printf("Ejecutando comando: %s\n", command);
+    flag = system(command);
+//    printf("Mensaje del comando %d\n", flag);
+  }
+}
 
 // Esta es una copia de la funcion anterior que ignora los espacios extras
 // de la matriz aumentada
@@ -675,20 +653,19 @@ int prepararVisualizacionGNUPlot_2(int secuencia, char *path, int filas,
 //    printf("Escribiendo archivo: %s\n", newpath);
     datosAltitud = fopen(newpath, "w");
     if (datosAltitud != NULL) {
-//      printf("Guardando en archivo 2...\n");
+//      printf("Guardando en archivo...\n");
       // Escribiendo los datos
       cont = 0;
-//      #pragma omp parallel for
       for (j = 1; j < columnas - 1; ++j) { // aca debo cambiar esto, altitude +
                                            // thickness da la altura, osea la z
-//        #pragma omp parallel for reduction(+:cont)
         for (i = 1; i < filas - 1; ++i) {
           xcoord = x0 + (i - 1) * w;
           ycoord = y0 + (j - 1) * w;
           zcoord = matriz[columnas * i + j].thickness +
                    matriz[columnas * i + j].altitude;
           temp = matriz[columnas * i + j].temperature;
-          fprintf(datosAltitud, "%6.3lf %6.3lf %6.8lf %6.8lf\n", xcoord, ycoord, zcoord, temp);
+          fprintf(datosAltitud, "%6.3lf %6.3lf %6.8lf %6.8lf\n", xcoord, ycoord,
+                  zcoord, temp);
           cont += 1;
         }
         // para las isolineas
@@ -708,7 +685,8 @@ int prepararVisualizacionGNUPlot_2(int secuencia, char *path, int filas,
       // se muestran opciones para png y eps
       // fprintf(encabezado,"set terminal png size 400,300 enhanced font
       // \"Helvetica,20\"\n\n",newpath);
-      fprintf(encabezado, "set terminal png size 1366,720 enhanced\n\n", newpath);
+      fprintf(encabezado, "set terminal png size 1366,720 enhanced\n\n",
+              newpath);
       fprintf(encabezado, "set output '%s.png'\n", newpath);
       // dejo estas líneas comentadas por si necesito configurar mejor
       // la visualización.
@@ -771,7 +749,6 @@ int limpiarPath(char path[], char spath[]) {
   strcpy(r_path, path);
   lg = strlen(r_path);
   j = 0;
-//  #pragma omp parallel for reduction(+:j)
   for (i = 0; i < lg; ++i) {
     if (r_path[i] == ' ') {
       f_path[j] = '\\';
@@ -786,14 +763,14 @@ int limpiarPath(char path[], char spath[]) {
   strcpy(spath, f_path);
 }
 
-//int generarAnimacionGNUPlot(char nombreArchivo[], int secuencia) {
+int generarAnimacionGNUPlot(char nombreArchivo[], int secuencia) {
   /* ----------------------------------------------------------
    * En construcción.
    * "mencoder mf://*.%s -mf w=1366:h=720:fps=5:type=png -ovc copy -oac copy -o
    * %S", "png", nombre.avi Función para generar un video a partir de imágenes
    * fijas.
    * ---------------------------------------------------------- */
-//}
+}
 
 // Acá va la función main.
 int main(int argc, char *argv[]) {
@@ -855,7 +832,7 @@ int main(int argc, char *argv[]) {
       break;
     }
   }
-  double start = omp_get_wtime();
+
   // dt esta de momento hardcoded, lo cambiaré más adelante
   c0.deltat = time_delta;
   // prueba de los parámetros ingresados
@@ -882,7 +859,7 @@ int main(int argc, char *argv[]) {
       placeCraters(testPoint, crateres, c0.maxRows, c0.maxColumns,
                    puntosCrater);
       preFuncion(c0.maxRows, c0.maxColumns, testPoint, resultPoint);
-//      #pragma omp parallel for
+
       for (i = 0; i < c0.timeSteps; i++) {
 //        printf("\n\nPaso de Tiempo %d: \n\n", i);
         FuncionPrincipal(c0.maxRows + 2, c0.maxColumns + 2, resultPoint,
@@ -907,8 +884,7 @@ int main(int argc, char *argv[]) {
       postFuncion(c0.maxRows + 2, c0.maxColumns + 2, resultCalc, resultPoint2);
     }
   }
-  double stop = omp_get_wtime();
-  printf("\tTiempo gastado en la ejecución (omp): %f seconds. \n",(stop-start));
+
   // fin codigo de prueba;
   // place-holders de las funciones del flujo de agrandar reducir
 
