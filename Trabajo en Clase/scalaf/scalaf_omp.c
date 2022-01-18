@@ -222,11 +222,11 @@ void postFuncion(int filas, int columnas, const mapCell *A, mapCell *C) {
   c = 0;
   f = 0;
   // reducir la matriz
-  #pragma omp parallel for reduction(+:f) private(i)
+  #pragma omp parallel for reduction(+:f) private(i) schedule(dynamic) // se mantiene aprox igual con el schedule
   for (i = 0; i < filas; i++) {
     if (!(i == 0 || i >= (filas - 1))) {
       c = 0;
-      #pragma omp parallel for reduction(+:c) private(j)
+      #pragma omp simd reduction(+:c) private(j) // simd / parallel for -> aprox igual
       for (j = 0; j < columnas; j++) {
         if (!(j == 0 || j >= (columnas - 1))) {
           B[f * n_columnas + c].altitude = A[i * columnas + j].altitude;
@@ -267,8 +267,9 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C) {
   double cArea = c0.cellWidth * c0.cellWidth;
   double alfa = 0.0;
   // primer ciclo que es solo para inicializar
-  #pragma omp parallel for collapse(2) private(i,j)
+  #pragma omp parallel for private(i) // parallel for collapse(2) private(i,j)  / simd -> peor //
   for (i = 1; i < filas - 1; i++) {
+      #pragma omp simd private(j) // parece mejorar quitando el collapse de fors y poniendo aca un simd
     for (j = 1; j < columnas - 1; j++) {
       // primero calcular la viscosidad y el yield, e inicializar los flujos
       A[i * columnas + j].viscosity = visc(A[i * columnas + j].temperature);
