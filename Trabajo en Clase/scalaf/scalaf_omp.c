@@ -325,9 +325,15 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C)
   double cArea = c0.cellWidth * c0.cellWidth;
   double alfa = 0.0;
   // primer ciclo que es solo para inicializar
-
-//  double start2 = omp_get_wtime();
-#pragma omp parallel for private(i) // parallel for collapse(2) private(i,j)  / simd -> peor //
+//  double start2;
+//  double stop2;
+  
+  #pragma omp parallel sections
+  {
+  #pragma omp section
+{
+//  start2 = omp_get_wtime();
+  #pragma omp parallel for private(i) // parallel for collapse(2) private(i,j)  / simd -> peor //
   for (i = 1; i < filas - 1; i++)
   {
 #pragma omp simd private(j) // parece mejorar quitando el collapse de fors y poniendo aca un simd
@@ -342,11 +348,15 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C)
       A[i * columnas + j].exits = 0;
     }
   }
-//  double stop2 = omp_get_wtime();
-  // printf("\tTiempo 'FuncionPrincipal1' (omp): %f seconds. \n", (stop2 - start2) );
+//  stop2 = omp_get_wtime();
+//   printf("\tTiempo 'FuncionPrincipal1' (omp): %f seconds. \n", (stop2 - start2) );
+  }
   // ciclo para evaluar la cantidad de salidas que tiene cada celda
 
-//  start2 = omp_get_wtime();
+  
+  #pragma omp section
+  {
+//    start2 = omp_get_wtime();
   //  #pragma omp parallel for collapse(2) private(i,j)// solo,private -> grafica
   for (i = 1; i < filas - 1; i++)
   {
@@ -390,14 +400,16 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C)
   }
 //  stop2 = omp_get_wtime();
 
-  // printf("\tTiempo 'FuncionPrincipal2' (omp): %f seconds. \n", (stop2 - start2) );
-
+//   printf("\tTiempo 'FuncionPrincipal2' (omp): %f seconds. \n", (stop2 - start2) );
+  }
   // acá solo se calculan los flujos, en el primer ciclo.  Como uno de los
   // los supuestos de los autómatas celulares es que los estados solo se
   // actualizan al final, se necesita un segundo ciclo.  Esto es crucial para el
   // mapeo.
 
-//  start2 = omp_get_wtime();
+  #pragma omp section
+  {
+//    start2 = omp_get_wtime();
   //  #pragma omp parallel for collapse(2) // private(i,j) //332 y 335 / GRAFICA
   for (i = 1; i < filas - 1; i++)
   {
@@ -535,11 +547,15 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C)
     }
   }
 //  stop2 = omp_get_wtime();
-  // printf("\tTiempo 'FuncionPrincipal3' (omp): %f seconds. \n", (stop2 - start2) );
+//   printf("\tTiempo 'FuncionPrincipal3' (omp): %f seconds. \n", (stop2 - start2) );
+  }
   // segundo ciclo, consolidamos los flujos, calculamos nuevos grosores
   // y temperaturas.
   // luego agregamos crateres y calculamos la temperatura perdida por radiacion
-//  start2 = omp_get_wtime();
+  
+  #pragma omp section
+  {
+//    start2 = omp_get_wtime();
   //  #pragma omp parallel for collapse(2)  private(i,j)// solo,private -> GRAFICA
   for (i = 1; i < filas - 1; i++)
   {
@@ -622,9 +638,11 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C)
       // A[(i)*(columnas)+(j)].thickness, deltaQ_rad, A[i*columnas+j].inboundQ);
     }
   }
-
+  
 //  stop2 = omp_get_wtime();
-  // printf("\tTiempo 'FuncionPrincipal4' (omp): %f seconds. \n", (stop2 - start2) );
+//   printf("\tTiempo 'FuncionPrincipal4' (omp): %f seconds. \n", (stop2 - start2) );
+  }
+  }
   memcpy(C, A, filas * columnas * sizeof(mapCell));
 }
 
@@ -814,7 +832,7 @@ int limpiarPath(char path[], char spath[])
 // Acá va la función main.
 int main(int argc, char *argv[])
 {
-
+  // omp_set_num_threads(7);
   double start = omp_get_wtime();
   int i, flag = 0;
   mapCell *testPoint, *resultPoint, *resultCalc, *resultPoint2;
@@ -946,5 +964,6 @@ int main(int argc, char *argv[])
   //  // MAX_COLS, test, 3, 1, 0, 0); printf("%d",flag); fin del programa
   double stop = omp_get_wtime();
   printf("\tTiempo 'MAIN' (omp): %f seconds. \n", (stop - start) );
+  // printf("%d",omp_get_max_threads());
   return 0;
 }
