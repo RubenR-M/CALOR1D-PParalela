@@ -44,7 +44,7 @@ int placeCraters(mapCell *A, const point2D *P, int totalRows, int totalColumns,
   int craterColumn, craterRow;
   clock_t begin = clock();
   double start2 = omp_get_wtime();
-#pragma omp parallel for
+#pragma omp parallel for private(i)
   for (int i = 0; i < totalCraters; ++i) {
     craterRow = P[i].x;
     craterColumn = P[i].y;
@@ -152,11 +152,11 @@ void preFuncion(int filas, int columnas, const mapCell *A, mapCell *C) {
   B = (mapCell *)malloc((filas + 2) * (columnas + 2) * sizeof(mapCell));
   // crear elementos para la matriz agrandada. B[filas+2][columnas+2];
   f = 0;
-//  #pragma omp parallel for reduction(+:f) // 178 / GRAFICA -> RED(vacio), SOLO(vacio)
+//  #pragma omp parallel for // private(f) // reduction(+:f) // 178 / GRAFICA -> RED(vacio), SOLO(vacio) / No es posible usar el private(f)
   for (i = 0; i < filas + 2; ++i) {
     if (!(i == 0 || i == (filas + 1))) {
       c = 0;
-//      #pragma omp parallel for reduction(+:c) // 155 / GRAFICA -> RED(vacio), SOLO(varias)
+//      #pragma omp parallel for // private(c) reduction(+:c) // 155 / GRAFICA -> RED(vacio), SOLO(varias)
       for (j = 0; j < columnas + 2; ++j) {
         if (!(j == 0 || j == (columnas + 1))) {
           // acá van los valores no en los bordes
@@ -243,11 +243,11 @@ void postFuncion(int filas, int columnas, const mapCell *A, mapCell *C) {
   // reducir la matriz
   clock_t begin = clock();
   double start2 = omp_get_wtime();
-#pragma omp parallel for reduction(+:f)
+#pragma omp parallel for reduction(+:f) private(i) schedule(dynamic) // se mantiene aprox igual con el schedule
   for (i = 0; i < filas; i++) {
     if (!(i == 0 || i >= (filas - 1))) {
       c = 0;
-      #pragma omp parallel for reduction(+:c)
+      #pragma omp parallel for reduction(+:c) private(j)
       for (j = 0; j < columnas; j++) {
         if (!(j == 0 || j >= (columnas - 1))) {
           B[f * n_columnas + c].altitude = A[i * columnas + j].altitude;
@@ -294,8 +294,9 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C) {
   // primer ciclo que es solo para inicializar
   clock_t begin = clock();
   double start2 = omp_get_wtime();
-#pragma omp parallel for collapse(2)
+#pragma omp parallel for private(i) // collapse(2) private(i,j) / simd->peor//
   for (i = 1; i < filas - 1; i++) {
+      #pragma om simd provate(j) // parece mejorar quitando el collapse de fors y poniendo aca un simd
     for (j = 1; j < columnas - 1; j++) {
       // primero calcular la viscosidad y el yield, e inicializar los flujos
       A[i * columnas + j].viscosity = visc(A[i * columnas + j].temperature);
@@ -311,7 +312,7 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C) {
   printf("\tTiempo gastado en la ejecución (clock): %f seconds. \n", (double)((end - begin) / CLOCKS_PER_SEC));
   printf("\tTiempo gastado en la ejecución (omp): %f seconds. \n", (stop2 - start2));
   // ciclo para evaluar la cantidad de salidas que tiene cada celda
-//  #pragma omp parallel for collapse(2) // TIEMPO
+//  #pragma omp parallel for collapse(2) private(i,j) // solo,priv->grafica
   for (i = 1; i < filas - 1; i++) {
     for (j = 1; j < columnas - 1; j++) {
       Href = A[i * (columnas) + j].thickness;
@@ -350,7 +351,7 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C) {
   // los supuestos de los autómatas celulares es que los estados solo se
   // actualizan al final, se necesita un segundo ciclo.  Esto es crucial para el
   // mapeo.
-//  #pragma omp parallel for collapse(2) //332 y 335 / GRAFICA
+//  #pragma omp parallel for collapse(2) // private(i,j) // 332 y 335 / GRAFICA
   for (i = 1; i < filas - 1; i++) {
     for (j = 1; j < columnas - 1; j++) {
       double deltaQ_flu_vent = 0.0;
@@ -389,7 +390,7 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C) {
       // calculo los flujos como tal, vamos a calcular directamente, sin
       // provisión de orden en los flujos, agregar el deltaV correcto. y el
       // correspondiente deltaQ
-//      #pragma omp parallel for collapse(2) //425-427 / TIEMPO Y GRAFICA
+//      #pragma omp parallel for collapse(2) private(l,m) //425-427 / TIEMPO Y GRAFICA
       for (l = -1; l < 2; l++) {
         for (m = -1; m < 2; m++) {
           if (!(m == 0 && l == 0)) {
@@ -478,7 +479,7 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C) {
   // segundo ciclo, consolidamos los flujos, calculamos nuevos grosores
   // y temperaturas.
   // luego agregamos crateres y calculamos la temperatura perdida por radiacion
-//  #pragma omp parallel for collapse(2)
+//  #pragma omp parallel for collapse(2) private(i,j) //solo,private->grafica
   for (i = 1; i < filas - 1; i++) {
     for (j = 1; j < columnas - 1; j++) {
       deltaT = 0.0;
@@ -698,10 +699,10 @@ int prepararVisualizacionGNUPlot_2(int secuencia, char *path, int filas,
 //      printf("Guardando en archivo 2...\n");
       // Escribiendo los datos
       cont = 0;
-//      #pragma omp parallel for
+//      #pragma omp parallel for private(j) reduction(+:cont) //solo,priv,red->G,T/
       for (j = 1; j < columnas - 1; ++j) { // aca debo cambiar esto, altitude +
                                            // thickness da la altura, osea la z
-//        #pragma omp parallel for reduction(+:cont)
+//        #pragma omp parallel for private(i) reduction(+:cont) //solo,priv,red->G,T
         for (i = 1; i < filas - 1; ++i) {
           xcoord = x0 + (i - 1) * w;
           ycoord = y0 + (j - 1) * w;
@@ -791,7 +792,7 @@ int limpiarPath(char path[], char spath[]) {
   strcpy(r_path, path);
   lg = strlen(r_path);
   j = 0;
-//  #pragma omp parallel for reduction(+:j)
+//  #pragma omp parallel for private(i) reduction(+:j) //cambia el path
   for (i = 0; i < lg; ++i) {
     if (r_path[i] == ' ') {
       f_path[j] = '\\';
@@ -903,7 +904,7 @@ int main(int argc, char *argv[]) {
       placeCraters(testPoint, crateres, c0.maxRows, c0.maxColumns,
                    puntosCrater);
       preFuncion(c0.maxRows, c0.maxColumns, testPoint, resultPoint);
-//      #pragma omp parallel for
+//      #pragma omp parallel for private(i) //solo,priv->2 vacias
       for (i = 0; i < c0.timeSteps; i++) {
 //        printf("\n\nPaso de Tiempo %d: \n\n", i);
         FuncionPrincipal(c0.maxRows + 2, c0.maxColumns + 2, resultPoint,
