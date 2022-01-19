@@ -22,6 +22,7 @@ Ejecucion
 #include <stdlib.h>
 #include <unistd.h>
 #include <omp.h>
+#include "time.h"
 
 // Función que calcula la viscosidad a partir de la temperatura,
 // tomada del artículo de Miyamoto y Sasaki
@@ -41,7 +42,9 @@ int placeCraters(mapCell *A, const point2D *P, int totalRows, int totalColumns,
                  int totalCraters) {
 
   int craterColumn, craterRow;
-  #pragma omp parallel for
+  clock_t begin = clock();
+  double start2 = omp_get_wtime();
+#pragma omp parallel for
   for (int i = 0; i < totalCraters; ++i) {
     craterRow = P[i].x;
     craterColumn = P[i].y;
@@ -51,6 +54,11 @@ int placeCraters(mapCell *A, const point2D *P, int totalRows, int totalColumns,
       }
     }
   }
+  double stop2 = omp_get_wtime();
+  clock_t end = clock();
+  printf("\tTiempo gastado en la ejecución (clock): %f seconds. \n", (double)((end - begin) / CLOCKS_PER_SEC));
+  printf("\tTiempo gastado en la ejecución (omp): %f seconds. \n", (stop2 - start2));
+
 }
 
 // Función para leer puntos en 2D desde un archivo de texto plano.
@@ -233,7 +241,9 @@ void postFuncion(int filas, int columnas, const mapCell *A, mapCell *C) {
   c = 0;
   f = 0;
   // reducir la matriz
-  #pragma omp parallel for reduction(+:f)
+  clock_t begin = clock();
+  double start2 = omp_get_wtime();
+#pragma omp parallel for reduction(+:f)
   for (i = 0; i < filas; i++) {
     if (!(i == 0 || i >= (filas - 1))) {
       c = 0;
@@ -255,6 +265,10 @@ void postFuncion(int filas, int columnas, const mapCell *A, mapCell *C) {
       f += 1;
     }
   }
+  double stop2 = omp_get_wtime();
+  clock_t end = clock();
+  printf("\tTiempo gastado en la ejecución (clock): %f seconds. \n", (double)((end - begin) / CLOCKS_PER_SEC));
+  printf("\tTiempo gastado en la ejecución (omp): %f seconds. \n", (stop2 - start2));
   // copiar la matriz reducida a la pasada por parámetro.
   memcpy(C, B, n_filas * n_columnas * sizeof(mapCell));
 }
@@ -278,7 +292,9 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C) {
   double cArea = c0.cellWidth * c0.cellWidth;
   double alfa = 0.0;
   // primer ciclo que es solo para inicializar
-  #pragma omp parallel for collapse(2)
+  clock_t begin = clock();
+  double start2 = omp_get_wtime();
+#pragma omp parallel for collapse(2)
   for (i = 1; i < filas - 1; i++) {
     for (j = 1; j < columnas - 1; j++) {
       // primero calcular la viscosidad y el yield, e inicializar los flujos
@@ -290,6 +306,10 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C) {
       A[i * columnas + j].exits = 0;
     }
   }
+  double stop2 = omp_get_wtime();
+  clock_t end = clock();
+  printf("\tTiempo gastado en la ejecución (clock): %f seconds. \n", (double)((end - begin) / CLOCKS_PER_SEC));
+  printf("\tTiempo gastado en la ejecución (omp): %f seconds. \n", (stop2 - start2));
   // ciclo para evaluar la cantidad de salidas que tiene cada celda
 //  #pragma omp parallel for collapse(2) // TIEMPO
   for (i = 1; i < filas - 1; i++) {
@@ -855,6 +875,7 @@ int main(int argc, char *argv[]) {
       break;
     }
   }
+  clock_t begin = clock();
   double start = omp_get_wtime();
   // dt esta de momento hardcoded, lo cambiaré más adelante
   c0.deltat = time_delta;
@@ -908,6 +929,8 @@ int main(int argc, char *argv[]) {
     }
   }
   double stop = omp_get_wtime();
+  clock_t end = clock();
+  printf("\tTiempo gastado en la ejecución (clock): %f seconds. \n", (double)((end - begin) / CLOCKS_PER_SEC));
   printf("\tTiempo gastado en la ejecución (omp): %f seconds. \n",(stop-start));
   // fin codigo de prueba;
   // place-holders de las funciones del flujo de agrandar reducir
