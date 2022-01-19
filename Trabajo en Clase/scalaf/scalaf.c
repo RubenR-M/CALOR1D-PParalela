@@ -10,6 +10,7 @@ Código secuencial para la simulación de flujos de lava volcánica
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <omp.h>
 
 // Función que calcula la viscosidad a partir de la temperatura,
 // tomada del artículo de Miyamoto y Sasaki
@@ -774,6 +775,7 @@ int generarAnimacionGNUPlot(char nombreArchivo[], int secuencia) {
 
 // Acá va la función main.
 int main(int argc, char *argv[]) {
+  double start2 = omp_get_wtime();
   int i, flag = 0;
   mapCell *testPoint, *resultPoint, *resultCalc, *resultPoint2;
   point2D *crateres;
@@ -891,5 +893,7 @@ int main(int argc, char *argv[]) {
   // place-holder de la funcion de escribir gnuplot
   // flag = prepararVisualizacionGNUPlot(1, "/home/sergio/salida1", MAX_ROWS,
 //  // MAX_COLS, test, 3, 1, 0, 0); printf("%d",flag); fin del programa
+  double stop2 = omp_get_wtime();
+  printf("\tTiempo 'main' (omp): %f seconds. \n", (stop2 - start2));
   return 0;
 }
