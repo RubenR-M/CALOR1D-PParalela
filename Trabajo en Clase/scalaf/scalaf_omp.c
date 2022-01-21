@@ -325,12 +325,12 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C)
   double cArea = c0.cellWidth * c0.cellWidth;
   double alfa = 0.0;
   // primer ciclo que es solo para inicializar
-//  double start2;
-//  double stop2;
+// double start2;
+// double stop2;
   
-//  #pragma omp sections
+  #pragma omp sections
   {
-//  #pragma omp section
+  #pragma omp section
 {
 //  start2 = omp_get_wtime();
   #pragma omp parallel for private(i) // parallel for collapse(2) private(i,j)  / simd -> peor //
@@ -354,7 +354,7 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C)
   // ciclo para evaluar la cantidad de salidas que tiene cada celda
 
   
-//  #pragma omp section
+  #pragma omp section
   {
 //    start2 = omp_get_wtime();
   //  #pragma omp parallel for collapse(2) private(i,j)// solo,private -> grafica
@@ -407,7 +407,7 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C)
   // actualizan al final, se necesita un segundo ciclo.  Esto es crucial para el
   // mapeo.
 
-//  #pragma omp section
+  #pragma omp section
   {
 //    start2 = omp_get_wtime();
   //  #pragma omp parallel for collapse(2) // private(i,j) //332 y 335 / GRAFICA
@@ -553,7 +553,7 @@ void FuncionPrincipal(int filas, int columnas, mapCell *A, mapCell *C)
   // y temperaturas.
   // luego agregamos crateres y calculamos la temperatura perdida por radiacion
   
-//  #pragma omp section
+  #pragma omp section
   {
 //    start2 = omp_get_wtime();
   //  #pragma omp parallel for collapse(2)  private(i,j)// solo,private -> GRAFICA
