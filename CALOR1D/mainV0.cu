@@ -19,6 +19,7 @@ __global__ void temperatura(float *d_T, float *d_t0, int Nx, int Nt, float T_der
 {
     int idx = threadIdx.x;
     int idy = threadIdx.y;
+    extern __shared__ float s[];
 
     if (idx == Nx - 1 && idy > 0)
     {
@@ -59,123 +60,38 @@ __global__ void temperatura(float *d_T, float *d_t0, int Nx, int Nt, float T_der
     }
 }
 
-void read(string path)
-{
-    vector<double> T_0;
-    string strT_0;
-
-    path = path;
-    ifstream fin;
-    fin.open(path);
-    if (fin.is_open())
-    {
-        fin >> Nt >> Nx >> dt >> dx >> strT_0 >> T_izq >> T_der >> k;
-        fin.close();
-    }
-
-    while (1) // Use a while loop, "i" isn't doing anything for you
-    {
-        if (strT_0.find(',') != std::string::npos) // if comman not found find return string::npos
-        {
-            double value;
-            istringstream(strT_0) >> value;
-            T_0.push_back(value);
-            strT_0.erase(0, strT_0.find(',') + 1); // Erase all element including comma
-        }
-        else
-            break; // Come out of loop
-    }
-}
-
-void graph(float *h_T, vector<float> X, int Nx, int Nt)
-{
-    string nombreArchivo = "datos.dat";
-    ofstream archivo;
-
-    cout << setprecision(3) << fixed;
-    cout << "t/x      | ";
-    for (int i = 0; i < Nx; i++) // creacion del vector de longitudes espaciado
-    {
-        if (i == 0 || i == Nx - 1)
-        {
-            cout << to_string(X[i]) << "000  ";
-        }
-        else
-        {
-            cout << to_string(X[i]) << "00  ";
-        }
-    }
-    cout << endl;
-    cout << "------------------------------------------------------------------" << endl;
-
-    vector<float> tiempo;
-    for (int i = 0; i < Nx * Nt; i++)
-    {
-        if (i == 0)
-        {
-            cout << to_string(i * dt) << " | ";
-        }
-        if (i == 0 || i == Nx - 1)
-        {
-            cout << to_string(h_T[i]) << "00  ";
-        }
-        else if (to_string(h_T[i]).size() < 12)
-        {
-            cout << to_string(h_T[i]) << "0  ";
-        }
-        else
-        {
-            cout << to_string(h_T[i]) << "  ";
-        }
-
-        if (i != Nx * Nt - 1 && (i + 1) % Nx == 0)
-        {
-            if (tiempo.size() == 0)
-            {
-                tiempo.push_back(0);
-            }
-            cout << endl;
-            cout << to_string(((i + 1) * dt) / Nx) << " | ";
-            tiempo.push_back(((i + 1) * dt) / Nx);
-        }
-    }
-    cout << endl;
-
-    for (int i = 0; i < (Nt)-1; i++)
-    {
-        for (int j = 0; j < Nx; j++)
-        {
-            X.push_back(j * dx);
-        }
-    }
-    vector<float> t;
-    for (int j = 0; j < Nt; j++)
-    {
-        for (int i = 0; i < Nx; i++)
-        {
-            t.push_back(tiempo[j]);
-        }
-    }
-    archivo.open(nombreArchivo.c_str(), fstream::out);
-    for (int i = 0; i < X.size(); i++)
-    {
-        archivo << X[i] << " " << t[i] << " " << h_T[i] << endl;
-    }
-    archivo.close();
-
-    gnuplot p;
-    p("set view map");
-    p("set dgrid3d");
-    p("set pm3d interpolate 0,0");
-    p("splot 'datos.dat' using 1:2:3 with pm3d");
-}
-
 int main(int argc, char **argv)
 {
+    cout << "Tiempo maximo -> 93" << endl;
+    ofstream archivo;
     if (argc > 1)
     {
+        int Nt, Nx;
+        double dx, dt, T_izq, T_der, k;
+        vector<double> T_0;
+        string strT_0;
+
         string path = (string)argv[1];
-        read(path);
+        ifstream fin;
+        fin.open(path);
+        if (fin.is_open())
+        {
+            fin >> Nt >> Nx >> dt >> dx >> strT_0 >> T_izq >> T_der >> k;
+            fin.close();
+        }
+
+        while (1) // Use a while loop, "i" isn't doing anything for you
+        {
+            if (strT_0.find(',') != std::string::npos) // if comman not found find return string::npos
+            {
+                double value;
+                istringstream(strT_0) >> value;
+                T_0.push_back(value);
+                strT_0.erase(0, strT_0.find(',') + 1); // Erase all element including comma
+            }
+            else
+                break; // Come out of loop
+        }
     }
     else
     {
@@ -195,6 +111,7 @@ int main(int argc, char **argv)
         }
         cout << "]" << endl;
     }
+
     Nx = Nx + 1;
     // vector de la vara lleno de 0's
     float *h_T;
@@ -204,10 +121,10 @@ int main(int argc, char **argv)
     cudaMallocHost((void **)&h_T, sizeof(float) * Nx * Nt);
     cudaMallocHost((void **)&h_t0, sizeof(float) * Nx);
 
-    vector<float> X;
+    vector<double> X;
     for (int j = 0; j < Nx; ++j)
     {
-        X.push_back(j * dx); // PARA GRAFICAR
+        X.push_back(j * dx);
         h_t0[j] = T_0[j];
     }
 
@@ -237,6 +154,9 @@ int main(int argc, char **argv)
     cudaMemcpy(h_T, d_T, sizeof(float) * Nx * Nt, cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
 
+    cudaFree(d_T);
+    cudaFree(d_t0);
+
     // for (int i = 0; i < Nt; ++i)
     // {
     //     for (int j = 0; j < Nx; ++j)
@@ -246,10 +166,52 @@ int main(int argc, char **argv)
     //     cout << endl;
     // }
 
-    graph(h_T, X, Nx, Nt);
+    vector<float> tiempo;
 
-    cudaFree(d_T);
-    cudaFree(d_t0);
+    for (int i = 0; i < Nx * Nt; i++)
+    {
+        if (i != Nx * Nt - 1 && (i + 1) % Nx == 0)
+        {
+            if (tiempo.size() == 0)
+            {
+                tiempo.push_back(0);
+            }
+            tiempo.push_back(((i + 1) * dt) / Nx);
+        }
+    }
+
+    for (int i = 0; i < (Nt)-1; i++)
+    {
+        for (int j = 0; j < Nx; j++)
+        {
+            X.push_back(j * dx);
+        }
+    }
+
+    vector<float> t;
+    for (int j = 0; j < Nt; j++)
+    {
+        for (int i = 0; i < Nx; i++)
+        {
+            t.push_back(tiempo[j]);
+        }
+    }
+    // archivo de datos a graficar
+    string nombreArchivo = "datos.dat";
+
+    archivo.open(nombreArchivo.c_str(), fstream::out);
+    for (int i = 0; i < X.size(); i++)
+    {
+        archivo << X[i] << " " << t[i] << " " << h_T[i] << endl;
+    }
+    archivo.close();
+
     cudaFreeHost(h_T);
     cudaFreeHost(h_t0);
+
+    gnuplot p;
+    p("set view map");
+    p("set dgrid3d");
+    p("set pm3d interpolate 0,0");
+    p("splot 'datos.dat' using 1:2:3 with pm3d");
 }
