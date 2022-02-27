@@ -7,11 +7,13 @@
 #include <sstream>
 #include <omp.h>
 #include <chrono>
-using namespace std::chrono;
 using namespace std;
-
+// g++ main_OPENMP.cpp -o omp -fopenmp
+// ./omp entradas.txt 8
 int main(int argc, char **argv)
 {
+    auto start = chrono::high_resolution_clock::now();
+    double start2 = omp_get_wtime();
     string nombreArchivo = "datos.dat";
     string strT_0;
     ofstream archivo;
@@ -21,6 +23,7 @@ int main(int argc, char **argv)
     double dx, dt, T_izq, T_der;
 
     string path = (string)argv[1]; // Storing your filename in a string
+    omp_set_num_threads(stoi(argv[2]));
     ifstream fin;                 // Declaring an input stream object
     fin.open(path);    // Open the file
     if (fin.is_open()) // If it opened successfully
@@ -51,31 +54,15 @@ int main(int argc, char **argv)
     for (int z = 0; z < Nt * Nx; z++)
     {
         T.push_back(0);
+        if (z<Nx)
+            X.push_back(z * dx); //creacion del vector de longitudes espaciado
     }
     
-    auto start = high_resolution_clock::now();
-    double start2 = omp_get_wtime();
-
 #pragma omp parallel for
     for (int i = 0; i < Nx; i++) 
     {
-        X.push_back(i * dx);	//creacion del vector de longitudes espaciado
         T[i] = T_0[i];		//seteo de la primera fila con temperatura ambiente de la barra
     }
-    double stop2 = omp_get_wtime();
-    auto stop = high_resolution_clock::now();
-
-    // for(int n=0; n<size; ++n)
-    // std::cout << sinTable[n] << " ";
-
-    std::cout << std::endl;
-    auto duration = duration_cast<microseconds>(stop - start);
-
-    std::cout << "Tiempo gastado en la ejecución: " << duration.count() << " microseconds" << std::endl;
-    std::cout << "Tiempo gastado en la ejecución (función de omp): " << (stop2 - start2) * 1000000 << " microseconds" << std::endl;
-
-    start = high_resolution_clock::now();
-    start2 = omp_get_wtime();
 
 #pragma omp parallel for
     for (int t = 1; t < Nt; t++)
@@ -83,74 +70,36 @@ int main(int argc, char **argv)
         T[(t)*Nx] = T_izq;           //Seteo de la primera columna con el valor del calor
         T[(t + 1) * Nx - 1] = T_der; //seteo de la ultima columna con el valor del calor
     }
-    stop2 = omp_get_wtime();
-    stop = high_resolution_clock::now();
 
-    // for(int n=0; n<size; ++n)
-    // std::cout << sinTable[n] << " ";
-
-    std::cout << std::endl;
-    duration = duration_cast<microseconds>(stop - start);
-
-    std::cout << "Tiempo gastado en la ejecución: " << duration.count() << " microseconds" << std::endl;
-    std::cout << "Tiempo gastado en la ejecución (función de omp): " << (stop2 - start2) * 1000000 << " microseconds" << std::endl;
-    //T[0] = (T[1] + T[Nx]) / 2; //seteo del primer elemento
-    //T[Nx - 1] = (T[Nx - 2] + T[2 * Nx - 1]) / 2; //seteo del ultimo elemento primera fila
-
-    start = high_resolution_clock::now();
-    start2 = omp_get_wtime();
-
-#pragma omp parallel for
-    for (int f = 1; f < Nt; f++) //f -> tiempo t
+#pragma omp simd collapse(2)
+    for (int f = 0; f < Nt-1; f++) //f -> tiempo t
     {
-        start = high_resolution_clock::now();
-        start2 = omp_get_wtime();
-#pragma omp parallel for
         for (int c = 1; c < Nx - 1; c++) //c -> posicion x
         {
-            T[f * Nx + c] = T[(f - 1) * Nx + c] + k * (T[(f - 1) * Nx + c + 1] - 2 * T[(f - 1) * Nx + c] + T[(f - 1) * Nx + c - 1]);
+            T[(f+1)*Nx+c]=T[f*Nx+c]+k*(T[f*Nx+c+1]-2*T[f*Nx+c]+T[f*Nx+c-1]);
         }
-        stop2 = omp_get_wtime();
-        stop = high_resolution_clock::now();
-
-        // for(int n=0; n<size; ++n)
-        // std::cout << sinTable[n] << " ";
-
-        std::cout << std::endl;
-        duration = duration_cast<microseconds>(stop - start);
-
-        std::cout << "Tiempo gastado en la ejecución: " << duration.count() << " microseconds" << std::endl;
-        std::cout << "Tiempo gastado en la ejecución (función de omp): " << (stop2 - start2) * 1000000 << " microseconds" << std::endl;
     }
-    stop2 = omp_get_wtime();
-    stop = high_resolution_clock::now();
-
-    // for(int n=0; n<size; ++n)
-    // std::cout << sinTable[n] << " ";
-
-    std::cout << std::endl;
-    duration = duration_cast<microseconds>(stop - start);
-
-    std::cout << "Tiempo gastado en la ejecución: " << duration.count() << " microseconds" << std::endl;
-    std::cout << "Tiempo gastado en la ejecución (función de omp): " << (stop2 - start2) * 1000000 << " microseconds" << std::endl;
 
     cout << setprecision(3) << fixed;
-    cout << "t/x      | ";
-    for (int i = 0; i < Nx; i++) //creacion del vector de longitudes espaciado
+    cout << "t\\x      | ";
+    for (int i = 0; i < Nx; i++)
     {
         if (i == 0 || i == Nx - 1)
         {
-            cout << to_string(X[i]) << "000  ";
+            cout << to_string(X[i]) << "00  ";
         }
         else
         {
             cout << to_string(X[i]) << "00  ";
         }
     }
-    cout << endl;
-    cout << "------------------------------------------------------------------" << endl;
+    
+    cout << endl << "---------------------------------------------------------------------------------------------------------------------------------------------" << endl;
 
     vector<float> tiempo;
+    vector<float> t;
+
+    //Mostrar
     for (int i = 0; i < Nx * Nt; i++)
     {
         if (i == 0)
@@ -159,11 +108,18 @@ int main(int argc, char **argv)
         }
         if (i == 0 || i == Nx - 1)
         {
-            cout << to_string(T[i]) << "00  ";
+            cout << to_string(T[i]) << "0  ";
         }
         else if (to_string(T[i]).size() < 12)
         {
-            cout << to_string(T[i]) << "0  ";
+            if (T[i]<10)
+            {
+                cout<<"0"<<to_string(T[i]) << "0  ";
+            }
+            else
+            {
+                cout << to_string(T[i]) << "0  ";
+            }
         }
         else
         {
@@ -176,13 +132,13 @@ int main(int argc, char **argv)
             {
                 tiempo.push_back(0);
             }
-            cout << endl;
+            cout<<endl;
             cout << to_string(((i + 1) * dt) / Nx) << " | ";
             tiempo.push_back(((i + 1) * dt) / Nx);
         }
     }
-    cout << endl;
 
+    //Graficar
     for (int i = 0; i < (Nt)-1; i++)
     {
         for (int j = 0; j < Nx; j++)
@@ -190,7 +146,6 @@ int main(int argc, char **argv)
             X.push_back(j * dx);
         }
     }
-    vector<float> t;
     for (int j = 0; j < Nt; j++)
     {
         for (int i = 0; i < Nx; i++)
@@ -204,10 +159,16 @@ int main(int argc, char **argv)
         archivo << X[i] << " " << t[i] << " " << T[i] << endl;
     }
     archivo.close();
+    cout<<endl;
 
     gnuplot p;
     p("set view map");
     p("set dgrid3d");
     p("set pm3d interpolate 0,0");
     p("splot 'datos.dat' using 1:2:3 with pm3d");
+    auto stop = chrono::high_resolution_clock::now();
+    double stop2 = omp_get_wtime();
+    chrono::duration<double> elapsed_seconds = stop-start;
+    cout <<endl<< "Tiempo (chr): " << elapsed_seconds.count() * 1000000 << " microseconds" << endl;
+    cout << "Tiempo (omp): " << (stop2 - start2) * 1000000 << " microseconds" << endl<<endl;
 }
