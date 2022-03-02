@@ -5,8 +5,10 @@
 #include "gnuplot.h"
 #include <fstream>
 #include <sstream>
+#include <chrono>
 using namespace std;
-
+// nvcc mainV1.cu -o cuda -arch=sm_50
+// ./cuda entradas.txt
 int Nt = 93;
 int Nx = 10;
 float dt = 0.01;
@@ -109,6 +111,9 @@ void graph(float *h_T, vector<float> X, int Nx, int Nt)
     cout << "------------------------------------------------------------------" << endl;
 
     vector<float> tiempo;
+    vector<float> t;
+
+    //Mostrar
     for (int i = 0; i < Nx * Nt; i++)
     {
         if (i == 0)
@@ -117,11 +122,18 @@ void graph(float *h_T, vector<float> X, int Nx, int Nt)
         }
         if (i == 0 || i == Nx - 1)
         {
-            cout << to_string(h_T[i]) << "00  ";
+            cout << to_string(h_T[i]) << "0  ";
         }
         else if (to_string(h_T[i]).size() < 12)
         {
-            cout << to_string(h_T[i]) << "0  ";
+            if (h_T[i]<10)
+            {
+                cout<<"0"<<to_string(h_T[i]) << "0  ";
+            }
+            else
+            {
+                cout << to_string(h_T[i]) << "0  ";
+            }
         }
         else
         {
@@ -134,13 +146,13 @@ void graph(float *h_T, vector<float> X, int Nx, int Nt)
             {
                 tiempo.push_back(0);
             }
-            cout << endl;
+            cout<<endl;
             cout << to_string(((i + 1) * dt) / Nx) << " | ";
             tiempo.push_back(((i + 1) * dt) / Nx);
         }
     }
-    cout << endl;
 
+    //Graficar
     for (int i = 0; i < (Nt)-1; i++)
     {
         for (int j = 0; j < Nx; j++)
@@ -148,7 +160,6 @@ void graph(float *h_T, vector<float> X, int Nx, int Nt)
             X.push_back(j * dx);
         }
     }
-    vector<float> t;
     for (int j = 0; j < Nt; j++)
     {
         for (int i = 0; i < Nx; i++)
@@ -162,6 +173,7 @@ void graph(float *h_T, vector<float> X, int Nx, int Nt)
         archivo << X[i] << " " << t[i] << " " << h_T[i] << endl;
     }
     archivo.close();
+    cout<<endl;
 
     gnuplot p;
     p("set view map");
@@ -172,6 +184,7 @@ void graph(float *h_T, vector<float> X, int Nx, int Nt)
 
 int main(int argc, char **argv)
 {
+    auto start = chrono::high_resolution_clock::now();
     if (argc > 1)
     {
         string path = (string)argv[1];
@@ -179,21 +192,21 @@ int main(int argc, char **argv)
     }
     else
     {
-        cout << "No entry found!!\nDefault Values: " << endl;
-        cout << "Nt: " << Nt << endl
-             << "Nx: " << Nx << endl
-             << "dt: " << dt << endl
-             << "dx: " << dx << endl
-             << "T_der: " << T_der << endl
-             << "T_izq: " << T_izq << endl
-             << "k: " << k << endl;
-        cout << "Tempaturas iniciales" << endl;
-        cout << "[ ";
-        for (int i = 0; i < Nx + 1; i++)
-        {
-            printf("%f ", T_0[i]);
-        }
-        cout << "]" << endl;
+        // cout << "No entry found!!\nDefault Values: " << endl;
+        // cout << "Nt: " << Nt << endl
+            //  << "Nx: " << Nx << endl
+            //  << "dt: " << dt << endl
+            //  << "dx: " << dx << endl
+            //  << "T_der: " << T_der << endl
+            //  << "T_izq: " << T_izq << endl
+            //  << "k: " << k << endl;
+        // cout << "Temperaturas iniciales" << endl;
+        // cout << "[ ";
+        // for (int i = 0; i < Nx + 1; i++)
+        // {
+        //     printf("%f ", T_0[i]);
+        // }
+        // cout << "]" << endl;
     }
     Nx = Nx + 1;
     // vector de la vara lleno de 0's
@@ -233,7 +246,7 @@ int main(int argc, char **argv)
     // unsigned int grid_cols = Nx;
     dim3 dimGrid(Nx, Nt);
 
-    temperatura<<<1, dimGrid>>>(d_T, d_t0, Nx, Nt, T_der, T_izq, k);
+    temperatura<<<32, dimGrid>>>(d_T, d_t0, Nx, Nt, T_der, T_izq, k);
     cudaMemcpy(h_T, d_T, sizeof(float) * Nx * Nt, cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
 
@@ -252,4 +265,8 @@ int main(int argc, char **argv)
     cudaFree(d_t0);
     cudaFreeHost(h_T);
     cudaFreeHost(h_t0);
+
+    auto stop = chrono::high_resolution_clock::now();
+    chrono::duration<double> elapsed_seconds = stop-start;
+    cout <<endl<< "Tiempo (chr): " << elapsed_seconds.count() * 1000000 << " microseconds\n\n";
 }

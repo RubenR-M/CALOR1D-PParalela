@@ -5,10 +5,13 @@
 #include "gnuplot.h"
 #include <fstream>
 #include <sstream>
+#include <chrono>
 using namespace std;
-
+// g++ main.cpp -o normal
+// ./normal entradas.txt
 int main(int argc, char **argv)
 {
+    auto start = chrono::high_resolution_clock::now();
     string nombreArchivo = "datos.dat";
     string strT_0;
     ofstream archivo;
@@ -84,6 +87,9 @@ int main(int argc, char **argv)
     cout << "------------------------------------------------------------------" << endl;
 
     vector<float> tiempo;
+    vector<float> t;
+
+    //Mostrar
     for (int i = 0; i < Nx * Nt; i++)
     {
         if (i == 0)
@@ -92,11 +98,18 @@ int main(int argc, char **argv)
         }
         if (i == 0 || i == Nx - 1)
         {
-            cout << to_string(T[i]) << "00  ";
+            cout << to_string(T[i]) << "0  ";
         }
         else if (to_string(T[i]).size() < 12)
         {
-            cout << to_string(T[i]) << "0  ";
+            if (T[i]<10)
+            {
+                cout<<"0"<<to_string(T[i]) << "0  ";
+            }
+            else
+            {
+                cout << to_string(T[i]) << "0  ";
+            }
         }
         else
         {
@@ -109,13 +122,13 @@ int main(int argc, char **argv)
             {
                 tiempo.push_back(0);
             }
-            cout << endl;
+            cout<<endl;
             cout << to_string(((i + 1) * dt) / Nx) << " | ";
             tiempo.push_back(((i + 1) * dt) / Nx);
         }
     }
-    cout << endl;
 
+    //Graficar
     for (int i = 0; i < (Nt)-1; i++)
     {
         for (int j = 0; j < Nx; j++)
@@ -123,7 +136,6 @@ int main(int argc, char **argv)
             X.push_back(j * dx);
         }
     }
-    vector<float> t;
     for (int j = 0; j < Nt; j++)
     {
         for (int i = 0; i < Nx; i++)
@@ -137,10 +149,14 @@ int main(int argc, char **argv)
         archivo << X[i] << " " << t[i] << " " << T[i] << endl;
     }
     archivo.close();
+    cout<<endl;
 
     gnuplot p;
     p("set view map");
     p("set dgrid3d");
     p("set pm3d interpolate 0,0");
     p("splot 'datos.dat' using 1:2:3 with pm3d");
+    auto stop = chrono::high_resolution_clock::now();
+    chrono::duration<double> elapsed_seconds = stop-start;
+    cout <<endl<< "Tiempo (chr): " << elapsed_seconds.count() * 1000000 << " microseconds\n\n";
 }
