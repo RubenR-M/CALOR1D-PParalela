@@ -8,15 +8,21 @@
 using namespace std;
 
 // Envio de archivos a Guane
+
 // scp ./calorMPI.cpp yrgualdronh@167.249.40.26:~
 // scp ./entradas.txt yrgualdronh@167.249.40.26:~
+// NODOS -> scp ./run_mpi.sh yrgualdronh@167.249.40.26:~
 
 // Carga, compilacion y ejecución en Guane
+
 // module load devtools/mpi/openmpi/3.1.4 && module load devtools/gcc/9.2.0
 // mpicxx calorMPI.cpp -o calorMPI
-// sbatch ./run_mpi.sh
+// mpirun -np 2 ./calorMPI
+// NODOS -> sbatch ./run_mpi.sh
 
 // Graficacion en local
+
+// g++ graph.cpp -o graph
 // scp yrgualdronh@167.249.40.26:datos.dat ~/Downloads && ./graph datos.dat
 
 /**
